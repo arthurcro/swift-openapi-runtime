@@ -27,35 +27,8 @@ let benchmarks = {
             maxIterations: 5
         )
     ) { benchmark in
-        let transcoder = ISO8601DateTranscoder()
+        let transcoder = ISO8601DateTranscoder(formatStyle: .iso8601)
         benchmark.startMeasurement()
         for _ in benchmark.scaledIterations { blackHole(try transcoder.encode(.distantFuture)) }
-    }
-
-    Benchmark(
-        "ISO8601DateFormatter.string(from:)",
-        configuration: Benchmark.Configuration(
-            metrics: defaultMetrics,
-            scalingFactor: .kilo,
-            maxDuration: .seconds(10_000_000),
-            maxIterations: 5
-        )
-    ) { benchmark in
-        let formatter = ISO8601DateFormatter()
-        benchmark.startMeasurement()
-        for _ in benchmark.scaledIterations { blackHole(formatter.string(from: .distantFuture)) }
-    }
-
-    Benchmark(
-        "Date.ISO8601Format(_:)",
-        configuration: Benchmark.Configuration(
-            metrics: defaultMetrics,
-            scalingFactor: .kilo,
-            maxDuration: .seconds(10_000_000),
-            maxIterations: 5
-        )
-    ) { benchmark in
-        benchmark.startMeasurement()
-        for _ in benchmark.scaledIterations { blackHole(Date.distantFuture.ISO8601Format()) }
     }
 }
