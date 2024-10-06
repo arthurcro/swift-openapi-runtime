@@ -27,7 +27,7 @@ let benchmarks = {
             maxIterations: 5
         )
     ) { benchmark in
-        let transcoder = ISO8601DateTranscoder(formatStyle: .iso8601)
+        let transcoder = ISO8601DateTranscoder()
         benchmark.startMeasurement()
         for _ in benchmark.scaledIterations { blackHole(try transcoder.encode(.distantFuture)) }
     }

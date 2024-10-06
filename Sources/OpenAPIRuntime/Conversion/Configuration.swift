@@ -65,17 +65,11 @@ public struct ISO8601DateTranscoder: DateTranscoder {
     private struct DateFormatStyleTranscoder: DateTranscoder, Sendable {
         private let formatStyle: Date.ISO8601FormatStyle
 
-        init(formatStyle: Date.ISO8601FormatStyle) {
-            self.formatStyle = formatStyle
-        }
+        init(formatStyle: Date.ISO8601FormatStyle) { self.formatStyle = formatStyle }
 
-        func encode(_ date: Date) throws -> String {
-            date.formatted(formatStyle)
-        }
+        func encode(_ date: Date) throws -> String { date.formatted(formatStyle) }
 
-        func decode(_ dateString: String) throws -> Date {
-            try formatStyle.parse(dateString)
-        }
+        func decode(_ dateString: String) throws -> Date { try formatStyle.parse(dateString) }
     }
 
     private let dateTranscoder: any DateTranscoder
@@ -83,28 +77,21 @@ public struct ISO8601DateTranscoder: DateTranscoder {
     /// Creates a new transcoder with the provided options.
     /// - Parameter options: Options to override the default ones. If you provide nil here, the default options
     ///   are used.
-    @available(macOS, deprecated: 12, message: "Use .init(formatStyle:) instead.")
-    @_disfavoredOverload
-    public init(options: ISO8601DateFormatter.Options? = nil) {
-        self.dateTranscoder = DateFormatterTranscoder(options: options)
-    }
+    @available(macOS, deprecated: 12, message: "Use .init(formatStyle:) instead.") @_disfavoredOverload public init(
+        options: ISO8601DateFormatter.Options? = nil
+    ) { self.dateTranscoder = DateFormatterTranscoder(options: options) }
 
     /// Creates a new transcoder with the given ISO8601 format style.
     /// - Parameter formatStyle: The format style for encoding/decoding dates. Defaults to `Date.ISO8601FormatStyle()`.
-    @available(macOS 12.0, *)
-    public init(formatStyle: Date.ISO8601FormatStyle = .iso8601) {
+    @available(macOS 12.0, *) public init(formatStyle: Date.ISO8601FormatStyle = .iso8601) {
         self.dateTranscoder = DateFormatStyleTranscoder(formatStyle: formatStyle)
     }
 
     /// Creates and returns an ISO 8601 formatted string representation of the specified date.
-    public func encode(_ date: Date) throws -> String {
-        try self.dateTranscoder.encode(date)
-    }
+    public func encode(_ date: Date) throws -> String { try self.dateTranscoder.encode(date) }
 
     /// Creates and returns a date object from the specified ISO 8601 formatted string representation.
-    public func decode(_ dateString: String) throws -> Date {
-        try self.dateTranscoder.decode(dateString)
-    }
+    public func decode(_ dateString: String) throws -> Date { try self.dateTranscoder.decode(dateString) }
 }
 
 extension DateTranscoder where Self == ISO8601DateTranscoder {
@@ -114,13 +101,8 @@ extension DateTranscoder where Self == ISO8601DateTranscoder {
     /// A transcoder that transcodes dates as ISO-8601–formatted string (in RFC 3339 format) with fractional seconds.
     public static var iso8601WithFractionalSeconds: Self {
         if #available(macOS 12, *) {
-            let formatStyle = Date.ISO8601FormatStyle.iso8601
-                .year()
-                .month()
-                .day()
-                .time(includingFractionalSeconds: true)
-                .dateSeparator(.dash)
-                .timeSeparator(.colon)
+            let formatStyle = Date.ISO8601FormatStyle.iso8601.year().month().day()
+                .time(includingFractionalSeconds: true).dateSeparator(.dash).timeSeparator(.colon)
                 .timeZoneSeparator(.colon)
             return ISO8601DateTranscoder(formatStyle: formatStyle)
         } else {
