@@ -25,43 +25,73 @@ public protocol DateTranscoder: Sendable {
 }
 
 /// A transcoder for dates encoded as an ISO-8601 string (in RFC 3339 format).
-public struct ISO8601DateTranscoder: DateTranscoder, @unchecked Sendable {
+public struct ISO8601DateTranscoder: DateTranscoder {
+    /// A transcoder using `ISO8601DateFormatter` for encoding and decoding.
+    private struct DateFormatterTranscoder: DateTranscoder, @unchecked Sendable {
+        /// The lock protecting the formatter.
+        private let lock: NSLock
 
-    /// The lock protecting the formatter.
-    private let lock: NSLock
+        /// The underlying date formatter.
+        private let locked_formatter: ISO8601DateFormatter
 
-    /// The underlying date formatter.
-    private let locked_formatter: ISO8601DateFormatter
+        init(options: ISO8601DateFormatter.Options? = nil) {
+            let formatter = ISO8601DateFormatter()
+            if let options { formatter.formatOptions = options }
+            lock = NSLock()
+            lock.name = "com.apple.swift-openapi-generator.runtime.ISO8601DateTranscoder"
+            locked_formatter = formatter
+        }
+
+        func encode(_ date: Date) throws -> String {
+            lock.lock()
+            defer { lock.unlock() }
+            return locked_formatter.string(from: date)
+        }
+
+        func decode(_ dateString: String) throws -> Date {
+            lock.lock()
+            defer { lock.unlock() }
+            guard let date = locked_formatter.date(from: dateString) else {
+                throw DecodingError.dataCorrupted(
+                    .init(codingPath: [], debugDescription: "Expected date string to be ISO8601-formatted.")
+                )
+            }
+            return date
+        }
+    }
+
+    @available(macOS 12, *)
+    /// A transcoder using `Date.ISO8601FormatStyle` for encoding and decoding which is significantly faster than `DateFormatterTranscoder`.
+    private struct DateFormatStyleTranscoder: DateTranscoder, Sendable {
+        private let formatStyle: Date.ISO8601FormatStyle
+
+        init(formatStyle: Date.ISO8601FormatStyle) { self.formatStyle = formatStyle }
+
+        func encode(_ date: Date) throws -> String { date.formatted(formatStyle) }
+
+        func decode(_ dateString: String) throws -> Date { try formatStyle.parse(dateString) }
+    }
+
+    private let dateTranscoder: any DateTranscoder
 
     /// Creates a new transcoder with the provided options.
     /// - Parameter options: Options to override the default ones. If you provide nil here, the default options
     ///   are used.
-    public init(options: ISO8601DateFormatter.Options? = nil) {
-        let formatter = ISO8601DateFormatter()
-        if let options { formatter.formatOptions = options }
-        lock = NSLock()
-        lock.name = "com.apple.swift-openapi-generator.runtime.ISO8601DateTranscoder"
-        locked_formatter = formatter
+    @available(macOS, deprecated: 12, message: "Use .init(formatStyle:) instead.") @_disfavoredOverload public init(
+        options: ISO8601DateFormatter.Options? = nil
+    ) { self.dateTranscoder = DateFormatterTranscoder(options: options) }
+
+    /// Creates a new transcoder with the given ISO8601 format style.
+    /// - Parameter formatStyle: The format style for encoding/decoding dates. Defaults to `Date.ISO8601FormatStyle()`.
+    @available(macOS 12.0, *) public init(formatStyle: Date.ISO8601FormatStyle = .iso8601) {
+        self.dateTranscoder = DateFormatStyleTranscoder(formatStyle: formatStyle)
     }
 
     /// Creates and returns an ISO 8601 formatted string representation of the specified date.
-    public func encode(_ date: Date) throws -> String {
-        lock.lock()
-        defer { lock.unlock() }
-        return locked_formatter.string(from: date)
-    }
+    public func encode(_ date: Date) throws -> String { try self.dateTranscoder.encode(date) }
 
     /// Creates and returns a date object from the specified ISO 8601 formatted string representation.
-    public func decode(_ dateString: String) throws -> Date {
-        lock.lock()
-        defer { lock.unlock() }
-        guard let date = locked_formatter.date(from: dateString) else {
-            throw DecodingError.dataCorrupted(
-                .init(codingPath: [], debugDescription: "Expected date string to be ISO8601-formatted.")
-            )
-        }
-        return date
-    }
+    public func decode(_ dateString: String) throws -> Date { try self.dateTranscoder.decode(dateString) }
 }
 
 extension DateTranscoder where Self == ISO8601DateTranscoder {
@@ -70,7 +100,14 @@ extension DateTranscoder where Self == ISO8601DateTranscoder {
 
     /// A transcoder that transcodes dates as ISO-8601–formatted string (in RFC 3339 format) with fractional seconds.
     public static var iso8601WithFractionalSeconds: Self {
-        ISO8601DateTranscoder(options: [.withInternetDateTime, .withFractionalSeconds])
+        if #available(macOS 12, *) {
+            let formatStyle = Date.ISO8601FormatStyle.iso8601.year().month().day()
+                .time(includingFractionalSeconds: true).dateSeparator(.dash).timeSeparator(.colon)
+                .timeZoneSeparator(.colon)
+            return ISO8601DateTranscoder(formatStyle: formatStyle)
+        } else {
+            return ISO8601DateTranscoder(options: [.withInternetDateTime, .withFractionalSeconds])
+        }
     }
 }
 
